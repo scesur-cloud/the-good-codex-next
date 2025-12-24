@@ -21,15 +21,26 @@ Otonom içerik üretim ve yönetim sistemi.
 - **Safety Nets**: Worker downtime warnings and "No Winner" alerts.
 - **Derived Views**: Robust `/raci`, `/todo`, `/timeline` pages.
 
-## Getting Started
-1. **Start Server**: `npm run dev`
-2. **Start Worker**: `npm run worker`
-3. **New Project**: Go to `http://localhost:3000/planner`
+## Quick Start (Docker - Recommended)
+The fastest way to run the entire stack (Web + Worker + DB) on Mac, Windows, or Linux:
+1. Ensure Docker Desktop is running.
+2. In the repo directory, run: `make up`
+3. Access: `http://localhost:3000`
+
+## Solo Ops (Makefile)
+- `make up`: Start everything.
+- `make logs`: View logs (add `-web` or `-worker` for specific logs).
+- `make backup`: Save a snapshot of the database to `backups/`.
+- `make restore FILE=...`: Restore from a snapshot.
+- `make ps`: Check service status & health.
+
+## Security
+- **Admin Actions**: Protected by `ADMIN_TOKEN`. Define this in your `.env` to enable self-heal buttons in the UI.
+- **Mock Mode**: Smoke tests and worker will automatically fallback to a deterministic "Mock Provider" if `GEMINI_API_KEY` is missing.
 
 ## CI/CD Pipeline
-- **Local Verification**: Run `pnpm -s ci` to execute linting, type-checking, production build, and smoke tests locally.
-- **Continuous Integration**: GitHub Actions will automatically run the same checks on every push or pull request to `main` or `master`.
-- **Smoke Tests**: Smoke tests require a `GEMINI_API_KEY`. If the key is missing in CI secrets, the smoke step will be skipped to keep the build green.
+- **Local Verification**: Run `pnpm -s ci`.
+- **Smoke Tests**: Guaranteed to run in CI. Uses mock provider if `GEMINI_API_KEY` is not present in secrets.
 
 ## Architecture
 - **Next.js 15**: App Router, Server Components
