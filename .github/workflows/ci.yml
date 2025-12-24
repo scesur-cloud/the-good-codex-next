@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm prisma generate
+
+      - name: Prisma migrate (SQLite CI)
+        env:
+          DATABASE_URL: "file:./ci.db"
+        run: pnpm prisma migrate deploy
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        env:
+          DATABASE_URL: "file:./ci.db"
+        run: pnpm build
+
+      - name: Smoke (full_test.ts)
+        if: ${{ secrets.GEMINI_API_KEY != '' }}
+        env:
+          DATABASE_URL: "file:./ci.db"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NODE_ENV: "test"
+        run: pnpm test:smoke
+
+      - name: Smoke skipped (missing GEMINI_API_KEY)
+        if: ${{ secrets.GEMINI_API_KEY == '' }}
+        run: echo "Skipping smoke test because GEMINI_API_KEY secret is not set."
