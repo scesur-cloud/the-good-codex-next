@@ -1,0 +1,39 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Persistent SQLite DB in volume
+      DATABASE_URL: "file:/app/data/prod.db"
+      NODE_ENV: "production"
+      # GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      # ADMIN_TOKEN: "${ADMIN_TOKEN}"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/api/health/providers').then(r => r.ok ? process.exit(0) : process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      sh -lc "pnpm prisma migrate deploy && pnpm start"
+
+  worker:
+    build: .
+    environment:
+      DATABASE_URL: "file:/app/data/prod.db"
+      NODE_ENV: "production"
+      # GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      # ADMIN_TOKEN: "${ADMIN_TOKEN}"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "ps aux | grep -v grep | grep -q 'scripts/worker.ts'" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    command: >
+      sh -lc "pnpm prisma migrate deploy && pnpm tsx scripts/worker.ts"
+    depends_on:
+      - web

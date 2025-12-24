@@ -26,12 +26,14 @@ function statusColor(s: string) {
 
 export default async function DashboardPage() {
     // 1. Fetch KPIs in parallel
+    const nowMinus60 = new Date(Date.now() - 60000);
     const [
         totalRuns,
         totalArtifacts,
         totalEvals,
         passingEvals,
-        recentRuns
+        recentRuns,
+        activeWorkers
     ] = await Promise.all([
         prisma.run.count(),
         prisma.artifact.count(),
@@ -41,8 +43,15 @@ export default async function DashboardPage() {
             orderBy: { createdAt: 'desc' },
             take: 5,
             include: { jobs: true } // to count active jobs if needed
+        }),
+        // @ts-ignore - Prisma might be stale in IDE but schema is updated
+        prisma.workerHeartbeat.groupBy({
+            by: ['workerId'],
+            where: { ts: { gte: nowMinus60 } }
         })
     ]);
+
+    const activeWorkersCount = activeWorkers.length;
 
     const passRate = totalEvals > 0 ? Math.round((passingEvals / totalEvals) * 100) : 0;
 
@@ -84,8 +93,28 @@ export default async function DashboardPage() {
                 <div className="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
             </div>
 
+            {/* ETAP E: Worker Offline Warning */}
+            {activeWorkersCount === 0 && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-red-400">
+                        <div className="p-2 rounded-lg bg-red-500/10">
+                            <Activity className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold uppercase tracking-wider">Worker Offline</h3>
+                            <p className="text-xs text-red-400/70 mt-1">
+                                Hiçbir aktif worker tespit edilemedi. Pipeline işlemleri bekletilecektir.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="text-[10px] font-mono bg-black/40 px-3 py-1.5 rounded text-red-200/50">
+                        Tip: make logs-worker / make ps
+                    </div>
+                </div>
+            )}
+
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 flex items-center gap-5">
                     <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                         <Activity className="h-6 w-6 text-blue-400" />
@@ -93,6 +122,19 @@ export default async function DashboardPage() {
                     <div>
                         <div className="text-sm font-medium text-slate-400 uppercase tracking-wide">Toplam Teslimat</div>
                         <div className="text-3xl font-bold text-white mt-1">{totalRuns} <span className="text-base font-normal text-slate-500">Run</span></div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 flex items-center gap-5">
+                    <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                        <Play className="h-6 w-6 text-orange-400" />
+                    </div>
+                    <div>
+                        <div className="text-sm font-medium text-slate-400 uppercase tracking-wide">Worker Online</div>
+                        <div className="text-3xl font-bold text-white mt-1">
+                            {activeWorkersCount}
+                            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        </div>
                     </div>
                 </div>
 
@@ -149,7 +191,7 @@ export default async function DashboardPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
-                                {recentRuns.map((run) => (
+                                {recentRuns.map((run: any) => (
                                     <tr key={run.id} className="hover:bg-indigo-500/5 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-white">{run.projectId}</div>

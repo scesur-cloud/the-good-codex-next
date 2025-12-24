@@ -93,3 +93,15 @@ model ProjectTemplate {
   
   createdAt   DateTime @default(now())
 }
+
+model WorkerHeartbeat {
+  id        String   @id @default(cuid())
+  workerId  String
+  ts        DateTime @default(now())
+
+  queued    Int      @default(0)
+  running   Int      @default(0)
+
+  @@index([workerId])
+  @@index([ts])
+}

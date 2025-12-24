@@ -99,6 +99,27 @@ export interface Run {
 export interface RunGetResponse {
   run: Run | null;
   stats: Record<AgentType, { pending: number, inFlight: number, done: number, failed: number }>;
+  ops?: {
+    activeWorkers: number;
+    lastHeartbeatTs: string | null;
+    queueDepth: number;
+    runningJobs: number;
+    stuckHints?: {
+      staleLocks: number;
+      noWorker: boolean;
+    };
+    adminEnabled: boolean;
+    lastJob?: {
+      id: string;
+      agent: string;
+      status: string;
+      attempts: number;
+      lockedAt: string | null;
+      lockedBy: string | null;
+      lastError: string | null;
+      updatedAt: string;
+    };
+  };
 }
 
 export interface Notification {

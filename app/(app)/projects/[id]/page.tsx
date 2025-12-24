@@ -16,6 +16,7 @@ import {
     Copy
 } from 'lucide-react';
 import { PHASES } from '@/lib/phases';
+import RunOpsActions from '@/components/RunOpsActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,21 +69,14 @@ export default async function ProjectRunDetailPage(props: { params: Promise<{ id
 
     return (
         <div className="space-y-8">
-            {/* Warning Banners */}
-            {showWorkerWarning && (
-                <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Activity className="h-5 w-5 text-amber-500" />
-                        <div>
-                            <p className="text-sm font-bold text-amber-200">Worker çalışmıyor olabilir</p>
-                            <p className="text-xs text-amber-400/70">{Math.round((Date.now() - new Date(stuckJob!.updatedAt).getTime()) / 1000)} saniyedir işlem bekleyen işler var.</p>
-                        </div>
-                    </div>
-                    <div className="text-xs font-mono bg-black/40 px-3 py-1.5 rounded text-amber-200/50 select-all">
-                        npx tsx scripts/worker.ts
-                    </div>
-                </div>
-            )}
+            {/* ETAP C: Ops Visibility & Self-Heal */}
+            <RunOpsActions
+                runId={run.id}
+                jobs={run.jobs.map(j => ({ ...j, createdAt: j.createdAt.toISOString(), startedAt: j.startedAt?.toISOString() || null, finishedAt: j.finishedAt?.toISOString() || null, updatedAt: j.updatedAt.toISOString() }))}
+                status={run.status}
+                adminEnabled={Boolean(process.env.ADMIN_TOKEN)}
+                adminToken={process.env.ADMIN_TOKEN}
+            />
 
             {noWinner && (
                 <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-4">

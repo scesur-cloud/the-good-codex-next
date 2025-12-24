@@ -53,11 +53,7 @@ jobs:
         run: pnpm build
 
       - name: Smoke (full_test.ts)
-        if: env.GEMINI_API_KEY != ''
         env:
           NODE_ENV: "test"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: pnpm test:smoke
-
-      - name: Smoke skipped (missing GEMINI_API_KEY)
-        if: env.GEMINI_API_KEY == ''
-        run: echo "Skipping smoke test because GEMINI_API_KEY secret is not set."

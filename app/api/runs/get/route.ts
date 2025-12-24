@@ -92,7 +92,7 @@ export async function GET(request: Request) {
                 createdAt: runData.createdAt.toISOString(),
                 startedAt: runData.startedAt?.toISOString(),
                 finishedAt: runData.finishedAt?.toISOString(),
-                jobs: runData.jobs.map(j => ({
+                jobs: runData.jobs.map((j: any) => ({
                     id: j.id,
                     agent: j.agent as AgentType,
                     status: j.status as JobStatus,
@@ -115,9 +115,61 @@ export async function GET(request: Request) {
             stats
         };
 
+        // 5. ETAP C: Ops Telemetry
+        try {
+            const nowMinus60 = new Date(Date.now() - 60000);
+            const activeWorkers = await prisma.workerHeartbeat.groupBy({
+                by: ['workerId'],
+                where: { ts: { gte: nowMinus60 } },
+            });
+            const lastHeartbeat = await prisma.workerHeartbeat.findFirst({
+                orderBy: { ts: 'desc' }
+            });
+            const queueDepth = await prisma.job.count({ where: { status: 'QUEUED' } });
+            const runningJobs = await prisma.job.count({ where: { status: 'RUNNING' } });
+
+            const staleLocksCount = await prisma.job.count({
+                where: {
+                    status: 'RUNNING',
+                    lockedAt: { lt: new Date(Date.now() - 90000) }
+                }
+            });
+
+            // Get last job for this run (if runId provided) or globally if not
+            const lastJobRaw = await prisma.job.findFirst({
+                where: runId ? { runId } : {},
+                orderBy: { updatedAt: 'desc' }
+            });
+
+            response.ops = {
+                activeWorkers: activeWorkers.length,
+                lastHeartbeatTs: lastHeartbeat?.ts.toISOString() || null,
+                queueDepth,
+                runningJobs,
+                adminEnabled: Boolean(process.env.ADMIN_TOKEN),
+                stuckHints: {
+                    staleLocks: staleLocksCount,
+                    noWorker: activeWorkers.length === 0 && queueDepth > 0
+                },
+                lastJob: lastJobRaw ? {
+                    id: lastJobRaw.id,
+                    agent: lastJobRaw.agent,
+                    status: lastJobRaw.status,
+                    attempts: lastJobRaw.attempts as number,
+                    lockedAt: lastJobRaw.lockedAt?.toISOString() || null,
+                    lockedBy: lastJobRaw.lockedBy,
+                    lastError: lastJobRaw.lastError,
+                    updatedAt: lastJobRaw.updatedAt.toISOString()
+                } : undefined
+            };
+        } catch (opsError) {
+            console.error("Ops Telemetry failed", opsError);
+        }
+
         return NextResponse.json(response);
 
     } catch (error) {
+        console.error(error);
         return NextResponse.json({ error: String(error) }, { status: 500 });
     }
 }

@@ -50,7 +50,27 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 
         // 4. README_RUN.md
         const hasFinal = run.artifacts.some(a => a.isFinal);
-        const readmeContent = `# Run Report: ${run.projectId}
+        const finalArt = run.artifacts.find(a => a.isFinal);
+        const finalEval = finalArt ? run.evaluations.find(e => e.artifactId === finalArt.id) : null;
+
+        const qCount = run.jobs.filter(j => j.status === 'QUEUED').length;
+        const rCount = run.jobs.filter(j => j.status === 'RUNNING').length;
+        const dCount = run.jobs.filter(j => j.status === 'DONE').length;
+        const eCount = run.jobs.filter(j => j.status === 'ERROR').length;
+        const lastError = run.jobs.find(j => j.error)?.error || 'None';
+
+        const readmeContent = `# QUICK SUMMARY
+Run: ${run.id}
+Project: ${run.projectId}
+Phase: ${run.phaseId}
+Status: ${run.status}
+Winner: ${finalArt ? `${finalArt.fileName} (Score: ${finalEval?.score || '?'})` : 'NONE'}
+Jobs: Queued ${qCount} / Running ${rCount} / Done ${dCount} / Failed ${eCount}
+LastError: ${lastError.slice(0, 100)}${lastError.length > 100 ? '...' : ''}
+
+---
+
+# Run Report: ${run.projectId}
 
 ## Metadata
 - **Run ID**: ${run.id}
