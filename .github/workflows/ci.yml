@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    env:
+      DATABASE_URL: "file:./ci.db"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,8 +41,6 @@ jobs:
         run: pnpm prisma generate
 
       - name: Prisma migrate (SQLite CI)
-        env:
-          DATABASE_URL: "file:./ci.db"
         run: pnpm prisma migrate deploy
 
       - name: Lint
@@ -48,18 +50,14 @@ jobs:
         run: pnpm typecheck
 
       - name: Build
-        env:
-          DATABASE_URL: "file:./ci.db"
         run: pnpm build
 
       - name: Smoke (full_test.ts)
-        if: ${{ secrets.GEMINI_API_KEY != '' }}
+        if: env.GEMINI_API_KEY != ''
         env:
-          DATABASE_URL: "file:./ci.db"
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NODE_ENV: "test"
         run: pnpm test:smoke
 
       - name: Smoke skipped (missing GEMINI_API_KEY)
-        if: ${{ secrets.GEMINI_API_KEY == '' }}
+        if: env.GEMINI_API_KEY == ''
         run: echo "Skipping smoke test because GEMINI_API_KEY secret is not set."
