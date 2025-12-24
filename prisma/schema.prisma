@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Run {
+  id        String    @id @default(cuid())
+  projectId String
+  phaseId   String
+  mode      String    // "MANUAL" | "AUTO"
+  status    String    // "PLANNING" | "PRODUCER" | "QA" | "DONE" | "ERROR"
+  createdAt DateTime  @default(now())
+  startedAt DateTime?
+  finishedAt DateTime?
+  
+  jobs      Job[]
+  evaluations ArtifactEvaluation[]
+  artifacts Artifact[]
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  type      String   // "prompt" | "agent"
+  agent     String   // "PLANNER" | "PRODUCER" | "QA"
+  status    String   // "QUEUED" | "RUNNING" | "DONE" | "ERROR"
+  runId     String?
+  stepKey   String?
+  projectId String?
+  phaseId   String?
+  
+  // Payload/Result
+  input     String   // JSON string
+  output    String?  // JSON string
+  error     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  startedAt DateTime?
+  finishedAt DateTime?
+  
+  run       Run?     @relation(fields: [runId], references: [id])
+  
+  @@index([runId])
+  @@index([agent])
+}
+
+model Artifact {
+  id          String   @id @default(cuid())
+  projectId   String
+  phaseId     String
+  runId       String?
+  fileName    String
+  mimeType    String
+  contentText String   // Store small text directly. For images, store Base64 or path
+  qaStatus    String?  // "pending" | "pass" | "fail"
+  isFinal     Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  
+  run         Run?     @relation(fields: [runId], references: [id])
+}
+
+model ArtifactEvaluation {
+  id        String   @id @default(cuid())
+  artifactId String
+  runId     String
+  rubricKey String
+  score     Int
+  verdict   String   // "PASS" | "FAIL"
+  notesJson String?  // JSON string
+  
+  createdAt DateTime @default(now())
+  
+  run       Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ProjectTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  rubricId    String
+  briefConfig String   // JSON string
+  
+  createdAt   DateTime @default(now())
+}
